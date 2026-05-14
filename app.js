@@ -19,8 +19,7 @@ const messageRoutes = require('./routes/messageRoute')
 const notificationRoutes = require('./routes/notificationRoute')
 const searchRoutes = require('./routes/searchRoute')
 
-
-
+app.set('trust proxy' , 1)
 // Connect to Database
 connectDB();
 
