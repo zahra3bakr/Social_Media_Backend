@@ -32,6 +32,13 @@ exports.updateProfile = async (request, response) => {
             return response.status(400).json({ message: error.details[0].message })
         }
 
+        if (value.email) {
+            const existingUser = await User.findOne({ email: value.email });
+            if (existingUser && existingUser._id.toString() !== request.user.id) {
+                return response.status(400).json({ message: "Email is already taken by another user." });
+            }
+        }
+
         if (request.file) {
             value.profilePicture = `/uploads/users/${request.file.filename}`
         }
