@@ -19,7 +19,7 @@ const messageRoutes = require('./routes/messageRoute')
 const notificationRoutes = require('./routes/notificationRoute')
 const searchRoutes = require('./routes/searchRoute')
 
-app.set('trust proxy' , 1)
+app.set('trust proxy' , true)
 // Connect to Database
 connectDB();
 
@@ -38,12 +38,14 @@ app.use(cors({
 const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 500, // limit each IP to 500 requests per windowMs
+    validate: { xForwardedForHeader: false },
     message: { message: 'Too many requests, please try again after 15 minutes.' }
 });
 
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 20, // limit each IP to 20 login attempts per windowMs
+    validate: { xForwardedForHeader: false },
     message: { message: 'Too many login attempts, please try again after 15 minutes.' }
 });
 
