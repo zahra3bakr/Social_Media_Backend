@@ -170,7 +170,11 @@ exports.forgetPassword = async (request , response) => {
             user.resetPasswordExpire = undefined;
             await user.save();
         }
-        response.status(500).json({ message: "Internal Server Error!" })
+        
+        response.status(500).json({ 
+            message: "Failed to send email. If you are on Railway, this is because Railway blocks Gmail (port 465). Please use Brevo API.",
+            errorDetails: error.message 
+        })
     }
 }
 
