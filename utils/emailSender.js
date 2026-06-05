@@ -29,7 +29,7 @@ const sendEmail = async (options) => {
         return; // Success
     }
 
-    // 1) Fallback for Localhost: Create a transporter using Nodemailer
+    // Create a transporter using Nodemailer
     const transporter = nodemailer.createTransport({
         host: process.env.EMAIL_HOST,
         port: process.env.EMAIL_PORT,
@@ -38,6 +38,9 @@ const sendEmail = async (options) => {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS,
         },
+        connectionTimeout: 5000, // timeout if connection takes longer than 5 seconds
+        greetingTimeout: 5000,
+        socketTimeout: 5000,
     });
 
     // 2) Define the email options
