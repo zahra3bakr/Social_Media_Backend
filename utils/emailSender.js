@@ -2,33 +2,6 @@ const nodemailer = require("nodemailer");
 require("dotenv").config();
 
 const sendEmail = async (options) => {
-    // If we are on Railway and have the Brevo API Key, use HTTP API to bypass SMTP block
-    if (process.env.BREVO_API_KEY) {
-        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-            method: 'POST',
-            headers: {
-                'accept': 'application/json',
-                'api-key': process.env.BREVO_API_KEY,
-                'content-type': 'application/json'
-            },
-            body: JSON.stringify({
-                sender: { name: "ConnectHub App", email: process.env.EMAIL_USER || "zahraabobakr3@gmail.com" },
-                to: [{ email: options.email }],
-                subject: options.subject,
-                htmlContent: `<div style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
-                    <h2>ConnectHub Password Reset</h2>
-                    <p style="font-size: 16px;">${options.message.replace(/\n/g, '<br>')}</p>
-                </div>`
-            })
-        });
-
-        if (!response.ok) {
-            const err = await response.text();
-            throw new Error('Failed to send email via Brevo API: ' + err);
-        }
-        return; // Success
-    }
-
     // Create a transporter using Nodemailer
     const transporter = nodemailer.createTransport({
         host: process.env.EMAIL_HOST,
