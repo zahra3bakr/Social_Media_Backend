@@ -29,10 +29,15 @@ const corsOrigin = process.env.NODE_ENV === 'development'
     ? /^http:\/\/localhost:\d+$/
     : process.env.ALLOWED_ORIGIN;
 
+// app.use(cors({
+//     origin: corsOrigin,
+//     credentials: true
+// }));
+
 app.use(cors({
-    origin: corsOrigin,
+    origin: "https://social-media-frontend-three-nu.vercel.app" ,
     credentials: true
-}));
+}))
 
 // RateLimiter
 const generalLimiter = rateLimit({
