@@ -2,6 +2,17 @@ const nodemailer = require("nodemailer");
 require("dotenv").config();
 
 const sendEmail = async (options) => {
+    const resend = new resend(process.env.RESEND_API_KEY);
+
+
+    await resend.emails.send({
+        from: "Social Media App <zahraabobakr3@gmail.com>",
+        to: options.email,
+        subject: options.subject,
+        text: options.message
+    });
+
+
     // Create a transporter using Nodemailer
     const transporter = nodemailer.createTransport({
         host: process.env.EMAIL_HOST,
