@@ -362,8 +362,8 @@ exports.getPostComments = async (request, response) => {
 
         response.status(200).json({
             success: true,
-            count: comments.length,
-            comments: comments // array of replies
+            count: CommentsWithReplies.length,
+            comments: CommentsWithReplies
         })
 
 
