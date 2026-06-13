@@ -9,13 +9,14 @@ const Notification = require("../models/notificationModel")
 // Create Post
 exports.createPost = async (request, response) => {
     try {
+        // Validation
         const { error, value } = postValidation.createPostSchema.validate(request.body)
-
 
         if (error) {
             return response.status(400).json({ message: error.details[0].message })
         }
 
+        // If image is uploaded
         let imageUrl = ""
         if (request.file) {
             imageUrl = `/uploads/posts/${request.file.filename}`
@@ -24,6 +25,7 @@ exports.createPost = async (request, response) => {
         // Extract tags from content
         const tags = value.content.match(/#(\w+)/g)?.map(tag => tag.substring(1)) || []
 
+        // Create new post
         const newPost = new Post({
             userId: request.user.id,
             content: value.content,
@@ -31,6 +33,7 @@ exports.createPost = async (request, response) => {
             tags: tags
         })
 
+        // Save post
         const savedPost = await newPost.save()
         response.status(201).json({
             success: true,
@@ -58,12 +61,15 @@ exports.getAllPosts = async (request, response) => {
         const limit = parseInt(request.query.limit) || 10 // number of posts per page
         const skip = (page - 1) * limit // number of posts to skip
 
+        // Get posts
         const posts = await Post.find(filter)
+            // populate posts with user
             .populate("userId", "username profilePicture")
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit)
 
+        // Get total number of posts
         const totalPosts = await Post.countDocuments(filter)
 
         response.status(200).json({
@@ -84,7 +90,9 @@ exports.getAllPosts = async (request, response) => {
 // Get Single Post By ID
 exports.getPostById = async (request, response) => {
     try {
+        // Get post by id
         const post = await Post.findById(request.params.id)
+        // populate post with user
             .populate("userId", "username profilePicture")
             .lean();
 
@@ -105,22 +113,26 @@ exports.getPostById = async (request, response) => {
 // Update Post
 exports.updatePost = async (request, response) => {
     try {
+        // Validation
         const { error, value } = postValidation.updatePostSchema.validate(request.body)
 
         if (error) {
             return response.status(400).json({ message: error.details[0].message })
         }
-
+  
         let updateData = { content: value.content };
         if (request.file) {
+            // If image is uploaded
             updateData.image = `/uploads/posts/${request.file.filename}`;
         } else if (value.image) {
             updateData.image = value.image;
         }
 
+        // Update post
         const updatedPost = await Post.findByIdAndUpdate(request.params.id,
             updateData,
             { new: true }
+            // populate post with user
         ).populate("userId", "username profilePicture");
 
         if (!updatedPost) {
@@ -141,6 +153,7 @@ exports.updatePost = async (request, response) => {
 // Delete Post 
 exports.deletePost = async (request, response) => {
     try {
+        // Get post by id
         const postId = request.params.id
         const post = await Post.findById(postId)
 
@@ -148,10 +161,12 @@ exports.deletePost = async (request, response) => {
             return response.status(404).json({ message: "Post not found!" })
         }
 
+        // Check if user is authorized
         if (post.userId.toString() !== request.user.id) {
             return response.status(403).json({ message: "Unauthorized!" })
         }
 
+        // Delete post
         await Promise.all([
             Post.findByIdAndDelete(postId),
             Like.deleteMany({ postId: postId }),
@@ -175,12 +190,14 @@ exports.toggleLike = async (request, response) => {
         const postId = request.params.id
         const userId = request.user.id
 
+        // Get post
         const post = await Post.findById(postId)
 
         if (!post) {
             return response.status(404).json({ message: "Post not found!" })
         }
 
+        // Check if user has already liked the post
         const existingLike = await Like.findOne({ userId, postId })
 
         if (existingLike) {
@@ -227,11 +244,12 @@ exports.toggleLike = async (request, response) => {
     }
 }
 
-// Likes view
+// Get Post Likes
 exports.getPostLikes = async (request, response) => {
     try {
         const postId = request.params.id;
         const likes = await Like.find({ postId })
+        // populate post with user
             .populate("userId", "username profilePicture")
             .sort({ createdAt: -1 });
 
@@ -253,20 +271,24 @@ exports.createComment = async (request, response) => {
         const postId = request.params.id
         const userId = request.user.id
 
+        // Validation
         const { error, value } = postValidation.createCommentSchema.validate(request.body)
 
         if (error) return response.status(400).json({ message: error.details[0].message })
 
+        // Check if user exists
         const userExists = await User.findById(userId)
         if (!userExists) {
             return response.status(404).json({ message: "User not found , Unauthozried to comment!" })
         }
 
+        // Check if post exists
         const post = await Post.findById(postId)
         if (!post) {
             return response.status(404).json({ message: "Post not found!" })
         }
 
+        // Create comment
         const newComment = new Comment({
             userId,
             postId,
@@ -274,6 +296,7 @@ exports.createComment = async (request, response) => {
             parentComment: null
         })
 
+        // Save comment
         const savedComment = await newComment.save()
 
         await Post.findByIdAndUpdate(postId, { $inc: { commentsCount: 1 } })
@@ -304,29 +327,38 @@ exports.createComment = async (request, response) => {
 exports.getPostComments = async (request, response) => {
     try {
         const page = parseInt(request.query.page) || 1 // current page
-        const limit = parseInt(request.query.limit) || 10 // number of posts per page
+        const limit = parseInt(request.query.limit) || 10 // number of posts/page
         const skip = (page - 1) * limit // number of posts to skip
 
         const postId = request.params.id
+
+        // Get comments
         const comments = await Comment.find({
             postId: postId,
-            parentComment: null
+            parentComment: null 
         })
-            .populate("userId", "username profilePicture")
-            .sort({ createdAt: -1 })
+            .populate("userId", "username profilePicture") // populate post with user
+            .sort({ createdAt: -1 }) // newest comments first
             .skip(skip)
             .limit(limit)
-            .lean()
+            .lean() // return plain javascript object
 
-        for (let i = 0; i < comments.length; i++) {
-            const replies = await Comment.find({ parentComment: comments[i]._id })
-                .populate("userId", "username profilePicture")
-                .sort({ createdAt: 1 })
-                .lean()
+        const CommentsWithReplies = await Promise.all(
+            // for each comment get replies
+            comments.map(async (comment) => {
+                const replies = await Comment.find({
+                    parentComment: comment._id
+                })
+                    .populate("userId", "username profilePicture") // populate post with user
+                    .sort({ createdAt: 1 }) // oldest replies first
+                    .lean() // return plain javascript object
 
-            comments[i].replies = replies;
-
-        }
+                return {
+                    ...comment,
+                    replies
+                }
+            })
+        )    
 
         response.status(200).json({
             success: true,
@@ -343,27 +375,32 @@ exports.getPostComments = async (request, response) => {
     }
 }
 
+// Create Reply
 exports.createReply = async (request, response) => {
     try {
         const { text } = request.body
         const parentCommentId = request.params.id
         const userId = request.user.id
 
+        // Validation
         const { error, value } = postValidation.createCommentSchema.validate(request.body)
 
         if (error) return response.status(400).json({ message: error.details[0].message })
 
+        // Check if user exists
         const userExists = await User.findById(userId)
         if (!userExists) {
             return response.status(404).json({ message: "User not found , Unauthozried to reply!" })
         }
 
+        // Check if parent comment exists
         const parentComment = await Comment.findById(parentCommentId)
 
         if (!parentComment) {
             return response.status(404).json({ message: "Parent comment not found!" })
         }
 
+        // Create reply
         const newComment = new Comment({
             userId,
             postId: parentComment.postId,
@@ -371,8 +408,11 @@ exports.createReply = async (request, response) => {
             parentComment: parentCommentId
         })
 
+        // Save reply
         const savedComment = await newComment.save()
 
+
+        // Increment comments count
         await Post.findByIdAndUpdate(parentComment.postId, { $inc: { commentsCount: 1 } })
         
         // Create Notification for the parent comment owner
@@ -403,7 +443,10 @@ exports.deleteComment = async (request, response) => {
         const commentId = request.params.id
         const userId = request.user.id
 
+        // Get comment
         const comment = await Comment.findById(commentId)
+
+        // Check if comment exists
         if (!comment) return response.status(404).json({ message: "Comment not found!" })
 
         // Check ownership
@@ -411,19 +454,20 @@ exports.deleteComment = async (request, response) => {
             return response.status(403).json({ message: "Unauthorized! You can only delete your own comments." })
         }
 
+        // Delete comment
         if (!comment.parentComment) {
-            // This is a main comment - delete it and all its replies
+            // delete parent comments and replies
             const repliesCount = await Comment.countDocuments({ parentComment: commentId })
             await Comment.deleteMany({ parentComment: commentId })
             await Comment.findByIdAndDelete(commentId)
-            
-            // Update post's commentsCount: -1 (main) - repliesCount
+
+            // update post commentsCount : -1 - replies count 
             await Post.findByIdAndUpdate(comment.postId, { $inc: { commentsCount: -(1 + repliesCount) } })
             
             // Cleanup notifications for this main comment
             await Notification.deleteOne({ senderId: userId, postId: comment.postId, type: "comment" })
         } else {
-            // This is a reply
+            // Delete reply
             await Comment.findByIdAndDelete(commentId)
             
             // Update post's commentsCount: -1
@@ -451,6 +495,7 @@ exports.updateComment = async (request, response) => {
             return response.status(400).json({ message: "Comment text cannot be empty!" })
         }
 
+        // Get comment
         const comment = await Comment.findById(commentId)
         if (!comment) return response.status(404).json({ message: "Comment not found!" })
 
@@ -459,11 +504,14 @@ exports.updateComment = async (request, response) => {
             return response.status(403).json({ message: "Unauthorized! You can only edit your own comments." })
         }
 
+        // Update comment
         const updatedComment = await Comment.findByIdAndUpdate(
             commentId,
             { text: text.trim() },
             { new: true }
-        ).populate("userId", "username profilePicture")
+        )
+        // populate post with user
+        .populate("userId", "username profilePicture")
 
         response.status(200).json({ 
             success: true, 
@@ -474,4 +522,4 @@ exports.updateComment = async (request, response) => {
         console.log("Update Comment Error:", error)
         response.status(500).json({ message: "Internal Server Error!" })
     }
-}
+}

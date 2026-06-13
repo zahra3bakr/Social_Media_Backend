@@ -13,24 +13,29 @@ exports.sendMessage = async (request , response) => {
             return response.status(400).json({message: "You can't send message to yourself!"})
         }
 
+        // Create conversation
         let conversation = await Conversation.findOne({participants: {$all: [senderId , receiverId]}})
 
+        // If conversation doesn't exist create new one
         if (!conversation) {
             conversation = await Conversation.create({
                 participants: [senderId , receiverId]
             })
         }
 
+        // Create message
         const newMessage = await Message({
             conversationId: conversation._id,
             senderId,
             receiverId,
             message
         })
+        // Update last message & update conv with last message
         if(newMessage){
            conversation.lastMessage = newMessage._id
         }
 
+        // Save conversation and message
         await Promise.all([conversation.save(), newMessage.save()]);
 
         // Socket.io: Send the message in real-time
@@ -61,12 +66,16 @@ exports.sendMessage = async (request , response) => {
 // Get messages
 exports.getMessages = async (request , response) => {
     try {
+        // Get messages
         const userToCHatId = request.params.id
         const sendId = request.user.id
 
+        // Find conversation
         const conversation = await Conversation.findOne({
             participants: { $all: [sendId , userToCHatId] }
-        }).populate("lastMessage")
+        })
+        // populate conversation with last message
+        .populate("lastMessage")
 
         if(!conversation) return response.status(200).json([])
 
@@ -91,6 +100,7 @@ exports.getConversations = async (request, response) => {
         const conversations = await Conversation.find({
             participants: userId
         })
+        // populate conversation with last message and participants
         .populate("participants", "username profilePicture")
         .populate("lastMessage");
 
@@ -109,13 +119,16 @@ exports.updateMessage = async (request, response) => {
         const messageId = request.params.id;
         const userId = request.user.id;
 
+        // Find the message by ID
         const msg = await Message.findById(messageId);
         if (!msg) return response.status(404).json({ message: "Message not found!" });
 
+        // Check if the message belongs to the user
         if (msg.senderId.toString() !== userId) {
             return response.status(403).json({ message: "Unauthorized!" });
         }
 
+        // Update the message
         msg.message = message;
         await msg.save();
 
@@ -135,13 +148,16 @@ exports.deleteMessage = async (request, response) => {
         const messageId = request.params.id;
         const userId = request.user.id;
 
+        // Find the message by ID
         const msg = await Message.findById(messageId);
         if (!msg) return response.status(404).json({ message: "Message not found!" });
 
+        // Check if the message belongs to the user
         if (msg.senderId.toString() !== userId) {
             return response.status(403).json({ message: "Unauthorized!" });
         }
 
+        //  Delete the message
         await Message.findByIdAndDelete(messageId);
 
         response.status(200).json({
@@ -160,9 +176,11 @@ exports.deleteConversation = async (request, response) => {
         const conversationId = request.params.id;
         const userId = request.user.id;
 
+        // Find the conversation
         const conversation = await Conversation.findById(conversationId);
         if (!conversation) return response.status(404).json({ message: "Conversation not found!" });
 
+        // Check if the user is a participant
         if (!conversation.participants.includes(userId)) {
             return response.status(403).json({ message: "Unauthorized!" });
         }

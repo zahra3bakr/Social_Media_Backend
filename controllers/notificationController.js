@@ -1,8 +1,11 @@
 const Notification = require('../models/notificationModel');
 
+// Get notifications
 exports.getNotification = async (request , response ) => {
     try {
+        // Get notifications
         const notifications = await Notification.find({ receiverId: request.user.id })
+            // populate notifications with sender and post
             .populate("senderId", "username profilePicture email")
             .populate("postId", "content image")
             .sort({ createdAt: -1 })
@@ -14,8 +17,10 @@ exports.getNotification = async (request , response ) => {
     }
 }
 
+// Mark notifications as read
 exports.markAsRead = async (request , response) => {
     try {
+        // Mark notifications as read
         await Notification.updateMany(
             {receiverId: request.user.id , isRead: false} , 
             {$set: {isRead: true}}

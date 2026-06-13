@@ -16,6 +16,7 @@ require("dotenv").config()
 
 exports.register = async (request , response) => {
     try {
+        // Validation
         const { error, value } = authValidation.registerSchema.validate(request.body);
 
         if (error) {
@@ -35,14 +36,17 @@ exports.register = async (request , response) => {
             });
         }
 
+        // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        // Create user
         const newUser = new User({
             ...value,
             password: hashedPassword ,
         });
         await newUser.save();
 
+        // Generate token
         const token = tokenService.generateToken(newUser._id);
 
         response.status(201).json({
@@ -93,7 +97,7 @@ exports.login = async (req, res) => {
         if (!user)
         return res.status(400).json({ message: "Invalid credentials" });
 
-        // Check password
+        // check/compare password
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch)
         return res.status(400).json({ message: "Invalid credentials" });
@@ -132,6 +136,7 @@ exports.forgetPassword = async (request , response) => {
         if (!user) {
             return response.status(400).json({ message: "User not found!" });
         }
+        // Generate reset token
         const resetToken = crypto.randomBytes(20).toString("hex");
 
         user.resetPasswordToken = crypto
@@ -143,6 +148,7 @@ exports.forgetPassword = async (request , response) => {
 
         await user.save();
 
+        // Send email
         const sendEmail = require("../utils/emailSender");
         const resetUrl = `${process.env.ALLOWED_ORIGIN || 'http://localhost:5173'}/reset-password/${resetToken}`;
         const message = `Forget Password? \n\nClick the link below to reset your password: \n\n ${resetUrl}`;
@@ -152,10 +158,6 @@ exports.forgetPassword = async (request , response) => {
             subject: "Password Reset Request",
             message: message,
         });
-        
-        console.log("-----------------------------------------");
-        console.log("Email sent successfully!");
-        console.log("-----------------------------------------");
 
         response.status(200).json({ 
             message: "Password reset email sent!",
@@ -166,6 +168,7 @@ exports.forgetPassword = async (request , response) => {
 
         const user = await User.findOne({ email: request.body.email });
         if (user) {
+            // Remove reset token
             user.resetPasswordToken = undefined;
             user.resetPasswordExpire = undefined;
             await user.save();
@@ -177,24 +180,29 @@ exports.forgetPassword = async (request , response) => {
 // Reset Password
 exports.resetPassword = async (request , response ) => {
     try {
+        // Hash token 
         const hashedToken = crypto
             .createHash("sha256")
             .update(request.params.token)
             .digest("hex");
 
-        const user = await User.findOne({
+            // Find user
+            const user = await User.findOne({
             resetPasswordToken: hashedToken,
             resetPasswordExpire: { $gt: Date.now() },
         });
 
+        // If token is invalid or has been expired
         if (!user) {
             return response.status(400).json({ message: "Token is invalid or has been expired!" });
         }
 
+        // Update password
         user.password = await bcrypt.hash(request.body.password , 10);
         user.resetPasswordToken = undefined;
         user.resetPasswordExpire = undefined;
 
+        // Save
         await user.save();
 
         response.status(200).json({ 

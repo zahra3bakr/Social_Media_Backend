@@ -6,8 +6,10 @@ const Notification = require("../models/notificationModel")
 // Get Profile
 exports.getProfile = async (request, response) => {
     try {
+        // Get user
         const user = await User.findById(request.user.id)
-            .select("-password")
+            .select("-password") // exclude password
+            // populate followers and following
             .populate("following", "username email profilePicture")
             .populate("followers", "username email profilePicture")
 
@@ -26,12 +28,14 @@ exports.getProfile = async (request, response) => {
 // Update Profile
 exports.updateProfile = async (request, response) => {
     try {
+        // Validation
         const { error, value } = userValidation.updateProfileSchema.validate(request.body)
 
         if (error) {
             return response.status(400).json({ message: error.details[0].message })
         }
 
+        // Check if email is already taken
         if (value.email) {
             const existingUser = await User.findOne({ email: value.email });
             if (existingUser && existingUser._id.toString() !== request.user.id) {
@@ -39,10 +43,12 @@ exports.updateProfile = async (request, response) => {
             }
         }
 
+        // Update user profile picture
         if (request.file) {
             value.profilePicture = `/uploads/users/${request.file.filename}`
         }
 
+        // Update user profile data
         const updatedUser = await User.findByIdAndUpdate(
             request.user.id,
             { $set: value },
@@ -64,6 +70,7 @@ exports.updateProfile = async (request, response) => {
 // Delete Profile Picture
 exports.deleteProfilePicture = async (request, response) => {
     try {
+        // delete user profile picture 
         const user = await User.findByIdAndUpdate(
             request.user.id,
             { $set: { profilePicture: "" } },
@@ -81,26 +88,31 @@ exports.deleteProfilePicture = async (request, response) => {
     }
 }
 
+// Toggle Follow 
 exports.toggleFollow = async (request, response) => {
     try {
         const targetUserId = request.params.id
         const currentUserId = request.user.id
 
+        // Check if user is trying to follow himself
         if (targetUserId === currentUserId) {
             return response.status(400).json({ message: "You can't follow yourself!" })
 
         }
 
+        // Check if user is already following the target user
         const targetUser = await User.findById(targetUserId)
         const currentUser = await User.findById(currentUserId)
 
         const isFollowing = currentUser.following.some(id => id.toString() === targetUserId)
 
+        // Toggle follow
         if (isFollowing) {
             currentUser.following = currentUser.following.filter(id => id.toString() !== targetUserId)
 
             targetUser.followers = targetUser.followers.filter(id => id.toString() !== currentUserId)
 
+            // save user
             await currentUser.save()
             await targetUser.save()
 
@@ -117,12 +129,14 @@ exports.toggleFollow = async (request, response) => {
                 success: true
             })
         } else {
+            // add follower and following
             currentUser.following.push(targetUserId)
             targetUser.followers.push(currentUserId)
 
             await currentUser.save()
             await targetUser.save()
 
+            // Create follow notification
             await Notification.create({
                 sender: currentUserId,
                 receiver: targetUserId,
@@ -146,9 +160,13 @@ exports.toggleFollow = async (request, response) => {
     }
 }
 
+// Get followers
 exports.getFollowers = async (request, response) => {
     try {
-        const user = await User.findById(request.user.id).populate("followers", "username email profilePicture")
+        // Get user
+        const user = await User.findById(request.user.id)
+        // populate followers with user
+        .populate("followers", "username email profilePicture")
 
         if (!user) {
             return response.status(404).json({
@@ -166,9 +184,13 @@ exports.getFollowers = async (request, response) => {
     }
 }
 
+// Get following
 exports.getFollowing = async (request, response) => {
     try {
-        const user = await User.findById(request.user.id).populate("following", "username email profilePicture")
+        // Get user
+        const user = await User.findById(request.user.id)
+        // populate following with user
+        .populate("following", "username email profilePicture")
 
         if (!user) {
             return response.status(404).json({
@@ -186,12 +208,14 @@ exports.getFollowing = async (request, response) => {
     }
 }
 
+// Get notifications
 exports.getNotifications = async (request, response) => {
     try {
         const notifications = await Notification.find({ receiverId: request.user.id })
+        // populate notifications with sender and post
             .populate("senderId", "username profilePicture email")
             .populate("postId", "content image")
-            .sort({ createdAt: -1 })
+            .sort({ createdAt: -1 }) // newest notifi
 
         response.status(200).json({
             success: true,
@@ -203,6 +227,7 @@ exports.getNotifications = async (request, response) => {
     }
 }
 
+// Get user profile
 exports.getUserProfile = async (request, response) => {
     try {
         const userId = request.params.id
@@ -229,6 +254,7 @@ exports.getUserProfile = async (request, response) => {
     }
 }
 
+// Get suggested users
 exports.getSuggestedUsers = async (request, response) => {
     try {
         const currentUserId = request.user.id
@@ -239,9 +265,9 @@ exports.getSuggestedUsers = async (request, response) => {
         const excludeIds = [currentUserId, ...(currentUser.following || [])]
 
         const suggestedUsers = await User.find({
-            _id: { $nin: excludeIds }
+            _id: { $nin: excludeIds } 
         })
-        .select("username profilePicture bio")
+        .select("username profilePicture bio") 
         .limit(5)
 
         response.status(200).json({
@@ -249,7 +275,7 @@ exports.getSuggestedUsers = async (request, response) => {
             users: suggestedUsers
         })
     } catch (error) {
-        console.log(error)
+        console.log(    error)
         response.status(500).json({ message: "Internal Server Error!" })
     }
 }

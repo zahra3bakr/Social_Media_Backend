@@ -2,6 +2,7 @@ const { verifyToken } = require('../utils/tokenService');
 
 const authMiddleware = (request, response, next) => {
     try {
+        // Get token from header
         const authHeader = request.headers.authorization;
 
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -23,7 +24,7 @@ const authMiddleware = (request, response, next) => {
         const decoded = verifyToken(token);
         request.user = decoded;
 
-        next();
+        next(); // proceed to the next middleware 
     } catch (error) {
         return response.status(401).json({
             success: false,
