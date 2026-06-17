@@ -1,4 +1,4 @@
-const nodemailer = require("nodemailer");
+// const nodemailer = require("nodemailer");
 require("dotenv").config();
 
 const sendEmail = async (options) => {
@@ -15,9 +15,9 @@ const sendEmail = async (options) => {
                     to: [{ email: options.email }],
                     subject: options.subject
                 }],
-                from: { 
-                    email: process.env.EMAIL_USER || "zahraabobakr3@gmail.com", 
-                    name: "ConnectHub App" 
+                from: {
+                    email: process.env.EMAIL_USER || "zahraabobakr3@gmail.com",
+                    name: "ConnectHub App"
                 },
                 content: [{
                     type: "text/html",
